@@ -370,9 +370,16 @@ class StockDataService:
         stop_loss_price = max(0.0, max(atr_stop, lower_guard_stop))
 
         risk_amount = max(close_now - stop_loss_price, close_now * 0.003)
-        take_profit_price = close_now + (risk_amount * target_rr)
+        uncapped_take_profit_price = close_now + (risk_amount * target_rr)
         upper_boost_target = upper_now + (atr14 * (0.2 + 0.4 * signal_strength))
-        take_profit_price = max(take_profit_price, upper_boost_target)
+        take_profit_price = max(uncapped_take_profit_price, upper_boost_target)
+
+        # Prevent unrealistically distant take-profit levels by applying a volatility-aware cap.
+        atr_pct = (atr14 / close_now) * 100 if close_now > 0 else 0
+        dynamic_take_profit_cap_pct = min(30.0, max(14.0, atr_pct * 4.0))
+        capped_take_profit_price = close_now * (1 + dynamic_take_profit_cap_pct / 100)
+        if take_profit_price > capped_take_profit_price:
+            take_profit_price = capped_take_profit_price
 
         stop_loss_pct = ((close_now - stop_loss_price) / close_now) * 100
         take_profit_pct = ((take_profit_price - close_now) / close_now) * 100
@@ -382,6 +389,10 @@ class StockDataService:
         rationale.append(
             f"손익절 추천(적응형): 그래프 신호 기반 손익비 {target_rr:.2f}:1을 적용했습니다."
         )
+        if take_profit_price < uncapped_take_profit_price:
+            rationale.append(
+                f"익절가 상한 적용: 변동성(ATR {atr_pct:.2f}%) 기준 최대 익절폭 {dynamic_take_profit_cap_pct:.2f}%로 제한했습니다."
+            )
 
         return {
             'current_price': float(current['close']),
@@ -413,6 +424,7 @@ class StockDataService:
                 'target_rr': round(float(target_rr), 3),
                 'stop_loss_pct': round(stop_loss_pct, 2),
                 'take_profit_pct': round(take_profit_pct, 2),
+                'take_profit_cap_pct': round(float(dynamic_take_profit_cap_pct), 2),
                 'risk_pct': round(float(risk_pct), 2),
                 'reward_pct': round(float(reward_pct), 2),
                 'rr_ratio': round(float(rr_ratio), 3) if rr_ratio is not None else None,
