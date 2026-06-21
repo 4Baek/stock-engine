@@ -29,9 +29,20 @@ class StockDataService:
 
     _krx_cache = []
     _krx_cache_expire_at = None
+    _us_stocks_cache = []
+    _us_stocks_cache_expire_at = None
     _bollinger_cache = {}
     _bollinger_cache_ttl_seconds = 120
     _cache_lock = threading.Lock()
+
+    @staticmethod
+    def _to_float(value):
+        if isinstance(value, dict):
+            value = value.get('raw')
+        try:
+            return float(value) if value is not None else None
+        except (TypeError, ValueError):
+            return None
 
     @staticmethod
     def _period_to_yahoo_range(period='1y'):
@@ -651,72 +662,200 @@ class StockDataService:
         except Exception as e:
             logger.warning(f"Error fetching KR top trading-value stocks: {e}")
             return []
+
+    @staticmethod
+    def _get_sp500_constituents(limit=500):
+        """Get S&P 500 constituents from Wikipedia."""
+        try:
+            url = 'https://en.wikipedia.org/wiki/List_of_S%26P_500_companies'
+            tables = pd.read_html(url)
+            if not tables:
+                return []
+
+            frame = tables[0]
+            items = []
+            for _, row in frame.iterrows():
+                symbol = str(row.get('Symbol', '')).strip().replace('.', '-')
+                if not symbol:
+                    continue
+                items.append({
+                    'symbol': symbol,
+                    'name': str(row.get('Security', symbol)).strip() or symbol,
+                    'market': 'US',
+                    'currency': 'USD',
+                    'sector': str(row.get('GICS Sector', 'N/A')).strip() or 'N/A',
+                })
+
+            return items[:limit]
+        except Exception as e:
+            logger.warning(f"Failed to fetch S&P 500 constituents: {e}")
+            return []
+
+    @staticmethod
+    def _fetch_us_most_actives(limit=300):
+        """Fetch US liquid equities from Yahoo most_actives screener."""
+        items = []
+        seen = set()
+        batch_size = 100
+        target = max(50, min(500, int(limit)))
+        headers = {'User-Agent': 'Mozilla/5.0'}
+
+        try:
+            for start in range(0, target, batch_size):
+                response = requests.get(
+                    'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved',
+                    params={
+                        'scrIds': 'most_actives',
+                        'count': batch_size,
+                        'start': start,
+                        'formatted': 'false',
+                    },
+                    headers=headers,
+                    timeout=10,
+                )
+                response.raise_for_status()
+                payload = response.json()
+                quotes = (((payload.get('finance') or {}).get('result') or [{}])[0].get('quotes') or [])
+                if not quotes:
+                    break
+
+                for quote in quotes:
+                    symbol = str(quote.get('symbol') or '').strip()
+                    if not symbol or symbol in seen:
+                        continue
+
+                    quote_type = str(quote.get('quoteType') or '').upper()
+                    if quote_type and quote_type != 'EQUITY':
+                        continue
+
+                    seen.add(symbol)
+                    items.append({
+                        'symbol': symbol,
+                        'name': quote.get('shortName') or quote.get('longName') or symbol,
+                        'market': 'US',
+                        'currency': 'USD',
+                        'sector': 'N/A',
+                        '_market_cap': StockDataService._to_float(quote.get('marketCap')) or 0.0,
+                        '_volume': StockDataService._to_float(quote.get('regularMarketVolume')) or 0.0,
+                    })
+
+                    if len(items) >= target:
+                        return items
+
+            return items
+        except Exception as e:
+            logger.warning(f"Failed to fetch Yahoo most_actives: {e}")
+            return items
     
     @staticmethod
     def get_us_stocks(limit=100):
-        """Get list of top US stocks (S&P 500)"""
+        """Get liquidity-ranked US stock list."""
         try:
-            # Popular US stocks
-            popular_symbols = [
-                'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA',
-                'META', 'NVDA', 'JPM', 'V', 'JNJ',
-                'WMT', 'PG', 'MA', 'DIS', 'ADBE',
-                'CRM', 'NFLX', 'INTC', 'AMD', 'CSCO'
-            ][:limit]
-            
-            stocks = []
-            symbol_name_map = {
-                'AAPL': 'Apple Inc.',
-                'MSFT': 'Microsoft Corporation',
-                'GOOGL': 'Alphabet Inc.',
-                'AMZN': 'Amazon.com, Inc.',
-                'TSLA': 'Tesla, Inc.',
-                'META': 'Meta Platforms, Inc.',
-                'NVDA': 'NVIDIA Corporation',
-                'JPM': 'JPMorgan Chase & Co.',
-                'V': 'Visa Inc.',
-                'JNJ': 'Johnson & Johnson',
-                'WMT': 'Walmart Inc.',
-                'PG': 'Procter & Gamble Co.',
-                'MA': 'Mastercard Incorporated',
-                'DIS': 'The Walt Disney Company',
-                'ADBE': 'Adobe Inc.',
-                'CRM': 'Salesforce, Inc.',
-                'NFLX': 'Netflix, Inc.',
-                'INTC': 'Intel Corporation',
-                'AMD': 'Advanced Micro Devices, Inc.',
-                'CSCO': 'Cisco Systems, Inc.',
-            }
-            for symbol in popular_symbols:
-                try:
-                    ticker = yf.Ticker(symbol)
-                    info = ticker.info
-                    stocks.append({
-                        'symbol': symbol,
-                        'name': info.get('longName', symbol),
-                        'market': 'US',
-                        'currency': 'USD',
-                        'sector': info.get('sector', 'N/A')
-                    })
-                except:
-                    pass
+            limit = max(1, int(limit))
+            now = datetime.utcnow()
 
-            if len(stocks) < max(5, min(20, limit)):
-                existing = {row['symbol'] for row in stocks}
-                for symbol in popular_symbols:
-                    if symbol in existing:
-                        continue
-                    stocks.append({
-                        'symbol': symbol,
-                        'name': symbol_name_map.get(symbol, symbol),
-                        'market': 'US',
-                        'currency': 'USD',
-                        'sector': 'N/A'
-                    })
-                    if len(stocks) >= limit:
-                        break
-            
-            return stocks[:limit]
+            if (
+                StockDataService._us_stocks_cache
+                and len(StockDataService._us_stocks_cache) >= limit
+                and StockDataService._us_stocks_cache_expire_at
+                and now < StockDataService._us_stocks_cache_expire_at
+            ):
+                return StockDataService._us_stocks_cache[:limit]
+
+            target_universe = max(200, min(500, limit * 2))
+            ranked = []
+            seen = set()
+
+            for row in StockDataService._fetch_us_most_actives(target_universe):
+                symbol = row.get('symbol')
+                if not symbol or symbol in seen:
+                    continue
+                seen.add(symbol)
+                ranked.append(row)
+
+            # Enrich from S&P 500 when most_actives coverage is insufficient.
+            if len(ranked) < max(50, min(150, target_universe // 2)):
+                sp500 = StockDataService._get_sp500_constituents(target_universe)
+                pending = [row for row in sp500 if row.get('symbol') not in seen][:250]
+
+                def enrich_liquidity(stock):
+                    symbol = stock.get('symbol')
+                    if not symbol:
+                        return None
+                    try:
+                        ticker = yf.Ticker(symbol)
+                        fast_info = ticker.fast_info or {}
+                        market_cap = StockDataService._to_float(
+                            fast_info.get('market_cap')
+                            or fast_info.get('marketCap')
+                        )
+                        volume = StockDataService._to_float(
+                            fast_info.get('last_volume')
+                            or fast_info.get('regular_market_volume')
+                            or fast_info.get('ten_day_average_volume')
+                            or fast_info.get('three_month_average_volume')
+                        )
+
+                        if volume is None:
+                            hist = StockDataService._fetch_us_chart(symbol, period='1mo', interval='1d')
+                            if hist is not None and not hist.empty:
+                                volume = float(hist['Volume'].tail(20).mean())
+
+                        if market_cap is None and volume is None:
+                            return None
+
+                        return {
+                            **stock,
+                            '_market_cap': market_cap or 0.0,
+                            '_volume': volume or 0.0,
+                        }
+                    except Exception:
+                        return None
+
+                max_workers = min(12, max(4, len(pending) // 20 + 1)) if pending else 4
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    futures = [executor.submit(enrich_liquidity, row) for row in pending]
+                    for future in as_completed(futures):
+                        item = future.result()
+                        if not item:
+                            continue
+                        symbol = item.get('symbol')
+                        if not symbol or symbol in seen:
+                            continue
+                        seen.add(symbol)
+                        ranked.append(item)
+
+            ranked.sort(
+                key=lambda x: (
+                    StockDataService._to_float(x.get('_market_cap')) or 0.0,
+                    StockDataService._to_float(x.get('_volume')) or 0.0,
+                ),
+                reverse=True,
+            )
+
+            # Minimal fallback list if external sources are unavailable.
+            if not ranked:
+                ranked = [
+                    {'symbol': 'AAPL', 'name': 'Apple Inc.', 'market': 'US', 'currency': 'USD', 'sector': 'Technology', '_market_cap': 0.0, '_volume': 0.0},
+                    {'symbol': 'MSFT', 'name': 'Microsoft Corporation', 'market': 'US', 'currency': 'USD', 'sector': 'Technology', '_market_cap': 0.0, '_volume': 0.0},
+                    {'symbol': 'NVDA', 'name': 'NVIDIA Corporation', 'market': 'US', 'currency': 'USD', 'sector': 'Technology', '_market_cap': 0.0, '_volume': 0.0},
+                    {'symbol': 'AMZN', 'name': 'Amazon.com, Inc.', 'market': 'US', 'currency': 'USD', 'sector': 'Consumer Cyclical', '_market_cap': 0.0, '_volume': 0.0},
+                    {'symbol': 'GOOGL', 'name': 'Alphabet Inc.', 'market': 'US', 'currency': 'USD', 'sector': 'Communication Services', '_market_cap': 0.0, '_volume': 0.0},
+                ]
+
+            cleaned = []
+            for row in ranked:
+                cleaned.append({
+                    'symbol': row.get('symbol'),
+                    'name': row.get('name') or row.get('symbol'),
+                    'market': 'US',
+                    'currency': 'USD',
+                    'sector': row.get('sector', 'N/A') or 'N/A',
+                })
+
+            StockDataService._us_stocks_cache = cleaned
+            StockDataService._us_stocks_cache_expire_at = now + timedelta(minutes=30)
+            return cleaned[:limit]
         except Exception as e:
             logger.error(f"Error fetching US stocks: {e}")
             return []
