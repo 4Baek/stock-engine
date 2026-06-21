@@ -356,14 +356,14 @@ class StockDataService:
         signal_strength = _clip01(score / 100.0)
         # Graph/signal-first RR: derive from band position, breakout, trend, volume, and downside risk.
         raw_target_rr = (
-            1.2
-            + (1.1 * breakout_intensity)
-            + (0.7 * trend_intensity)
-            + (0.5 * volume_intensity)
-            + (0.3 * middle_intensity)
-            - (0.7 * downside_intensity)
+            1.05
+            + (0.60 * breakout_intensity)
+            + (0.45 * trend_intensity)
+            + (0.35 * volume_intensity)
+            + (0.20 * middle_intensity)
+            - (0.50 * downside_intensity)
         )
-        target_rr = max(0.8, min(4.5, raw_target_rr))
+        target_rr = max(1.0, min(2.6, raw_target_rr))
 
         atr_stop = close_now - (atr14 * max(0.5, atr_multiplier))
         lower_guard_stop = lower_now * 0.995 if lower_now > 0 else atr_stop
@@ -376,9 +376,9 @@ class StockDataService:
 
         # Prevent unrealistically distant take-profit levels by applying a volatility-aware cap.
         atr_pct = (atr14 / close_now) * 100 if close_now > 0 else 0
-        dynamic_take_profit_cap_pct = min(30.0, max(14.0, atr_pct * 4.0))
+        dynamic_take_profit_cap_pct = min(45.0, max(16.0, atr_pct * 5.0))
         capped_take_profit_price = close_now * (1 + dynamic_take_profit_cap_pct / 100)
-        take_profit_capped = take_profit_price > capped_take_profit_price
+        take_profit_capped = take_profit_price > (capped_take_profit_price * 1.001)
         if take_profit_capped:
             take_profit_price = capped_take_profit_price
 
