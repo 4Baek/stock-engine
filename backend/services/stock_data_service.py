@@ -36,6 +36,21 @@ class StockDataService:
     _bollinger_cache_ttl_seconds = 120
     _cache_lock = threading.Lock()
 
+    _kr_fallback_stocks = [
+        {'symbol': '005930', 'name': '삼성전자', 'market': 'KR', 'currency': 'KRW'},
+        {'symbol': '000660', 'name': 'SK하이닉스', 'market': 'KR', 'currency': 'KRW'},
+        {'symbol': '035420', 'name': 'NAVER', 'market': 'KR', 'currency': 'KRW'},
+        {'symbol': '005380', 'name': '현대차', 'market': 'KR', 'currency': 'KRW'},
+        {'symbol': '035720', 'name': '카카오', 'market': 'KR', 'currency': 'KRW'},
+        {'symbol': '051910', 'name': 'LG화학', 'market': 'KR', 'currency': 'KRW'},
+        {'symbol': '207940', 'name': '삼성바이오로직스', 'market': 'KR', 'currency': 'KRW'},
+        {'symbol': '068270', 'name': '셀트리온', 'market': 'KR', 'currency': 'KRW'},
+        {'symbol': '105560', 'name': 'KB금융', 'market': 'KR', 'currency': 'KRW'},
+        {'symbol': '012330', 'name': '현대모비스', 'market': 'KR', 'currency': 'KRW'},
+        {'symbol': '028260', 'name': '삼성물산', 'market': 'KR', 'currency': 'KRW'},
+        {'symbol': '055550', 'name': '신한지주', 'market': 'KR', 'currency': 'KRW'},
+    ]
+
     @staticmethod
     def _normalize_text(value):
         text = unicodedata.normalize('NFKC', str(value or '')).strip().lower()
@@ -1069,7 +1084,24 @@ class StockDataService:
                             if normalized_query_compact in StockDataService._normalize_text(s.get('name', ''))
                             or normalized_query_compact in StockDataService._normalize_text(s.get('symbol', ''))
                         ]
-                    results.extend(filtered[:30])
+
+                    if not filtered:
+                        filtered = [
+                            s for s in StockDataService._kr_fallback_stocks
+                            if normalized_query_compact in StockDataService._normalize_text(s.get('name', ''))
+                            or normalized_query_compact in StockDataService._normalize_text(s.get('symbol', ''))
+                        ]
+
+                    deduped_filtered = []
+                    seen = set()
+                    for row in filtered:
+                        symbol = row.get('symbol')
+                        if not symbol or symbol in seen:
+                            continue
+                        seen.add(symbol)
+                        deduped_filtered.append(row)
+
+                    results.extend(deduped_filtered[:30])
                 except:
                     pass
             
