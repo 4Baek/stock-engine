@@ -41,8 +41,8 @@ export default function StockSearch({ onSelectStock }) {
             }}
             className="px-3 py-2 border border-gray-300 rounded-md"
           >
-            <option value="KR">한국</option>
             <option value="US">미국</option>
+            <option value="KR">한국</option>
           </select>
           
           <input

@@ -5,8 +5,8 @@ import { formatCurrency, formatLargeCurrencyText } from '../utils';
 import { BarChart3, RefreshCw, Sparkles } from 'lucide-react';
 
 const marketOptions = [
-  { value: 'KR', label: '한국 추천' },
   { value: 'US', label: '미국 추천' },
+  { value: 'KR', label: '한국 추천' },
 ];
 
 function SignalBadge({ active, label, colorClass }) {
