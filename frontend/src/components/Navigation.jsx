@@ -5,6 +5,7 @@ import { Menu, X } from 'lucide-react';
 const navItems = [
   { label: '주식 검색', to: '/stocks' },
   { label: '볼리저밴드추천', to: '/bollinger-recommendations' },
+  { label: '볼리저 설명', to: '/bollinger-guide' },
   { label: '대시보드', to: '/dashboard', disabled: true },
   { label: '포트폴리오', to: '/portfolio', disabled: true },
   { label: '거래', to: '/trade', disabled: true },

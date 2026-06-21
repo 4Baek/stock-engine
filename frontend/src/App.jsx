@@ -4,6 +4,7 @@ import Navigation from './components/Navigation';
 import Dashboard from './pages/Dashboard';
 import StockDetails from './pages/StockDetails';
 import BollingerRecommendations from './pages/BollingerRecommendations';
+import BollingerGuide from './pages/BollingerGuide';
 import './index.css';
 
 function App() {
@@ -44,6 +45,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard userId={userId} />} />
             <Route path="/stocks" element={<StockDetails />} />
             <Route path="/bollinger-recommendations" element={<BollingerRecommendations />} />
+            <Route path="/bollinger-guide" element={<BollingerGuide />} />
             <Route path="/portfolio" element={<Dashboard userId={userId} />} />
             <Route path="*" element={<Navigate to="/stocks" replace />} />
           </Routes>
