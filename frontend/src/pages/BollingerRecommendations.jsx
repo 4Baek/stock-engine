@@ -34,6 +34,10 @@ export default function BollingerRecommendations() {
     top_value_count: 200,
     limit: 8,
     min_score: 30,
+    trade_plan_mode: 'adaptive',
+    atr_multiplier: 1.6,
+    target_rr_min: 1.6,
+    target_rr_max: 3.0,
     stop_loss_pct: 5,
     take_profit_pct: 12,
     breakout_weight: 35,
@@ -262,6 +266,17 @@ export default function BollingerRecommendations() {
               />
             </label>
             <label className="text-sm text-slate-600">
+              손익절 계산 모드
+              <select
+                value={settings.trade_plan_mode}
+                onChange={(e) => setSettings((prev) => ({ ...prev, trade_plan_mode: e.target.value }))}
+                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2"
+              >
+                <option value="adaptive">적응형 추천</option>
+                <option value="fixed">고정 퍼센트</option>
+              </select>
+            </label>
+            <label className="text-sm text-slate-600">
               손절(%)
               <input
                 type="number"
@@ -270,7 +285,8 @@ export default function BollingerRecommendations() {
                 step="0.5"
                 value={settings.stop_loss_pct}
                 onChange={(e) => setSettings((prev) => ({ ...prev, stop_loss_pct: Number(e.target.value) || 1 }))}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2"
+                disabled={settings.trade_plan_mode !== 'fixed'}
+                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 disabled:bg-slate-100"
               />
             </label>
             <label className="text-sm text-slate-600">
@@ -282,9 +298,50 @@ export default function BollingerRecommendations() {
                 step="0.5"
                 value={settings.take_profit_pct}
                 onChange={(e) => setSettings((prev) => ({ ...prev, take_profit_pct: Number(e.target.value) || 1 }))}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2"
+                disabled={settings.trade_plan_mode !== 'fixed'}
+                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 disabled:bg-slate-100"
               />
             </label>
+            {settings.trade_plan_mode === 'adaptive' && (
+              <>
+                <label className="text-sm text-slate-600">
+                  ATR 배수
+                  <input
+                    type="number"
+                    min="0.5"
+                    max="3"
+                    step="0.1"
+                    value={settings.atr_multiplier}
+                    onChange={(e) => setSettings((prev) => ({ ...prev, atr_multiplier: Number(e.target.value) || 1.6 }))}
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2"
+                  />
+                </label>
+                <label className="text-sm text-slate-600">
+                  최소 손익비
+                  <input
+                    type="number"
+                    min="1"
+                    max="5"
+                    step="0.1"
+                    value={settings.target_rr_min}
+                    onChange={(e) => setSettings((prev) => ({ ...prev, target_rr_min: Number(e.target.value) || 1.6 }))}
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2"
+                  />
+                </label>
+                <label className="text-sm text-slate-600">
+                  최대 손익비
+                  <input
+                    type="number"
+                    min="1"
+                    max="6"
+                    step="0.1"
+                    value={settings.target_rr_max}
+                    onChange={(e) => setSettings((prev) => ({ ...prev, target_rr_max: Number(e.target.value) || 3 }))}
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2"
+                  />
+                </label>
+              </>
+            )}
           </div>
           {market === 'KR' && settings.universe_mode === 'all' && (
             <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
@@ -467,11 +524,11 @@ export default function BollingerRecommendations() {
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
                   추천 손절가: <span className="font-semibold text-slate-900">{formatCurrency(item.trade_plan?.stop_loss_price, item.currency)}</span>
-                  <p className="mt-1 text-xs text-slate-500">기준: 현재가 대비 -{item.trade_plan?.stop_loss_pct}%</p>
+                  <p className="mt-1 text-xs text-slate-500">기준: 현재가 대비 -{item.trade_plan?.stop_loss_pct}% ({item.trade_plan?.mode === 'adaptive' ? '적응형' : '고정형'})</p>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
                   추천 익절가: <span className="font-semibold text-slate-900">{formatCurrency(item.trade_plan?.take_profit_price, item.currency)}</span>
-                  <p className="mt-1 text-xs text-slate-500">기준: 현재가 대비 +{item.trade_plan?.take_profit_pct}%</p>
+                  <p className="mt-1 text-xs text-slate-500">기준: 현재가 대비 +{item.trade_plan?.take_profit_pct}% ({item.trade_plan?.mode === 'adaptive' ? '적응형' : '고정형'})</p>
                 </div>
               </div>
 

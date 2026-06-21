@@ -215,6 +215,12 @@ class StockDataService:
         volume_threshold = float(config.get('volume_threshold', 1.3))
         stop_loss_pct = float(config.get('stop_loss_pct', 5.0))
         take_profit_pct = float(config.get('take_profit_pct', 12.0))
+        trade_plan_mode = str(config.get('trade_plan_mode', 'adaptive')).lower()
+        atr_multiplier = float(config.get('atr_multiplier', 1.6))
+        target_rr_min = float(config.get('target_rr_min', 1.6))
+        target_rr_max = float(config.get('target_rr_max', 3.0))
+        if target_rr_max < target_rr_min:
+            target_rr_min, target_rr_max = target_rr_max, target_rr_min
 
         close = hist_df['Close'].astype(float)
         middle = close.rolling(window=window).mean()
@@ -341,8 +347,42 @@ class StockDataService:
             f"세부 점수: 돌파 {breakout_component:.1f}, 스퀴즈 {squeeze_component:.1f}, 추세 {trend_component:.1f}, 거래량 {volume_component:.1f}, 중심선 {above_middle_component:.1f}, 하단패널티 -{downside_component:.1f}"
         )
 
-        stop_loss_price = float(current['close'] * (1 - stop_loss_pct / 100))
-        take_profit_price = float(current['close'] * (1 + take_profit_pct / 100))
+        high = hist_df['High'].astype(float) if 'High' in hist_df.columns else close
+        low = hist_df['Low'].astype(float) if 'Low' in hist_df.columns else close
+        prev_close = close.shift(1)
+        tr = pd.concat([
+            (high - low).abs(),
+            (high - prev_close).abs(),
+            (low - prev_close).abs(),
+        ], axis=1).max(axis=1)
+        atr_series = tr.rolling(window=14).mean().dropna()
+        atr14 = float(atr_series.iloc[-1]) if not atr_series.empty else float((high - low).tail(14).abs().mean())
+        if atr14 <= 0:
+            atr14 = close_now * 0.015
+
+        if trade_plan_mode == 'adaptive':
+            rr_span = max(0.2, target_rr_max - target_rr_min)
+            signal_strength = _clip01(score / 100.0)
+            target_rr = target_rr_min + (rr_span * signal_strength)
+
+            atr_stop = close_now - (atr14 * max(0.5, atr_multiplier))
+            lower_guard_stop = lower_now * 0.995 if lower_now > 0 else atr_stop
+            stop_loss_price = max(0.0, max(atr_stop, lower_guard_stop))
+
+            risk_amount = max(close_now - stop_loss_price, close_now * 0.003)
+            take_profit_price = close_now + (risk_amount * target_rr)
+            upper_boost_target = upper_now + (atr14 * (0.2 + 0.4 * signal_strength))
+            take_profit_price = max(take_profit_price, upper_boost_target)
+
+            stop_loss_pct = ((close_now - stop_loss_price) / close_now) * 100
+            take_profit_pct = ((take_profit_price - close_now) / close_now) * 100
+            rationale.append(
+                f"손익절 추천(적응형): ATR14 {atr14:.2f}, 목표 손익비 {target_rr:.2f}:1 기준으로 계산했습니다."
+            )
+        else:
+            stop_loss_price = float(close_now * (1 - stop_loss_pct / 100))
+            take_profit_price = float(close_now * (1 + take_profit_pct / 100))
+            rationale.append('손익절 추천(고정형): 입력한 손절/익절 퍼센트로 계산했습니다.')
 
         return {
             'current_price': float(current['close']),
@@ -369,10 +409,12 @@ class StockDataService:
                 'downside_component': round(downside_component, 2),
             },
             'trade_plan': {
+                'mode': trade_plan_mode,
+                'atr14': round(float(atr14), 4),
                 'stop_loss_pct': round(stop_loss_pct, 2),
                 'take_profit_pct': round(take_profit_pct, 2),
-                'stop_loss_price': stop_loss_price,
-                'take_profit_price': take_profit_price,
+                'stop_loss_price': float(stop_loss_price),
+                'take_profit_price': float(take_profit_price),
             },
             'analysis': rationale,
         }
