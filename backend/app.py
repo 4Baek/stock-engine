@@ -15,6 +15,9 @@ def create_app(config_class=Config):
     # Initialize extensions
     db.init_app(app)
     CORS(app)
+
+    # Import models before create_all so SQLAlchemy knows all tables.
+    from models import Stock, Portfolio, PortfolioHolding, Trade, StockPrice  # noqa: F401
     
     # Create database tables
     with app.app_context():

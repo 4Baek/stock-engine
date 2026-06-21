@@ -125,10 +125,14 @@ def get_stock_info(symbol):
     if not price_data:
         return jsonify({'error': 'Stock not found'}), 404
 
-    stock = Stock.query.filter_by(symbol=symbol, market=market).first()
-    if stock:
-        price_data['name'] = stock.name
-        price_data['sector'] = stock.sector
+    try:
+        stock = Stock.query.filter_by(symbol=symbol, market=market).first()
+        if stock:
+            price_data['name'] = stock.name
+            price_data['sector'] = stock.sector
+    except Exception as db_err:
+        # Return live price data even if local DB metadata lookup fails.
+        logger.warning(f"Stock metadata lookup failed for {symbol} ({market}): {db_err}")
 
     return jsonify(price_data), 200
 
