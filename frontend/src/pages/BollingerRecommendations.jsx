@@ -137,6 +137,20 @@ export default function BollingerRecommendations() {
 
   const marketLabel = useMemo(() => (market === 'KR' ? '한국' : '미국'), [market]);
 
+  const getRiskRewardRatio = (item) => {
+    const current = Number(item?.current_price);
+    const stop = Number(item?.trade_plan?.stop_loss_price);
+    const take = Number(item?.trade_plan?.take_profit_price);
+
+    if (![current, stop, take].every(Number.isFinite)) return null;
+
+    const risk = current - stop;
+    const reward = take - current;
+    if (risk <= 0 || reward <= 0) return null;
+
+    return reward / risk;
+  };
+
   return (
     <div className="space-y-8">
       <section className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-lg shadow-slate-200/40">
@@ -387,7 +401,9 @@ export default function BollingerRecommendations() {
         <div className="rounded-[2rem] bg-white p-10 text-center text-slate-500 shadow-lg shadow-slate-200/30">추천할 데이터가 없습니다. 잠시 후 다시 시도해 주세요.</div>
       ) : (
         <section className="grid gap-5 lg:grid-cols-2">
-          {items.map((item) => (
+          {items.map((item) => {
+            const riskRewardRatio = getRiskRewardRatio(item);
+            return (
             <article key={`${item.market}-${item.symbol}`} className="rounded-[1.75rem] bg-white p-6 shadow-lg shadow-slate-200/40">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -459,6 +475,13 @@ export default function BollingerRecommendations() {
                 </div>
               </div>
 
+              {riskRewardRatio && (
+                <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                  추천 손익비: <span className="font-semibold">{riskRewardRatio.toFixed(2)} : 1</span>
+                  <p className="mt-1 text-xs text-emerald-700">계산식: (추천 익절가 - 현재가) / (현재가 - 추천 손절가)</p>
+                </div>
+              )}
+
               <div className="mt-4 flex justify-end">
                 <button
                   onClick={() => openStockDetails(item)}
@@ -468,7 +491,7 @@ export default function BollingerRecommendations() {
                 </button>
               </div>
             </article>
-          ))}
+          );})}
         </section>
       )}
     </div>
