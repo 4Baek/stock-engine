@@ -152,6 +152,40 @@ export default function BollingerRecommendations() {
     return reward / risk;
   };
 
+  const getPriceGraphData = (item) => {
+    const stop = Number(item?.trade_plan?.stop_loss_price);
+    const current = Number(item?.current_price);
+    const take = Number(item?.trade_plan?.take_profit_price);
+    const lower = Number(item?.lower_band);
+    const middle = Number(item?.middle_band);
+    const upper = Number(item?.upper_band);
+
+    const all = [stop, current, take, lower, middle, upper].filter(Number.isFinite);
+    if (all.length < 4) return null;
+
+    const rangeMin = Math.min(...all);
+    const rangeMax = Math.max(...all);
+    const span = Math.max(rangeMax - rangeMin, 1e-9);
+    const pct = (v) => Math.max(0, Math.min(100, ((v - rangeMin) / span) * 100));
+
+    return {
+      stop,
+      current,
+      take,
+      lower,
+      middle,
+      upper,
+      pos: {
+        stop: pct(stop),
+        current: pct(current),
+        take: pct(take),
+        lower: pct(lower),
+        middle: pct(middle),
+        upper: pct(upper),
+      },
+    };
+  };
+
   return (
     <div className="space-y-8">
       <section className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-lg shadow-slate-200/40">
@@ -416,6 +450,7 @@ export default function BollingerRecommendations() {
         <section className="grid gap-5 lg:grid-cols-2">
           {items.map((item) => {
             const riskRewardRatio = getRiskRewardRatio(item);
+            const priceGraph = getPriceGraphData(item);
             return (
             <article key={`${item.market}-${item.symbol}`} className="rounded-[1.75rem] bg-white p-6 shadow-lg shadow-slate-200/40">
               <div className="flex items-start justify-between gap-3">
@@ -488,11 +523,42 @@ export default function BollingerRecommendations() {
                 </div>
               </div>
 
+              {priceGraph && (
+                <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-semibold text-slate-800">가격 위치 그래프</p>
+                  <p className="mt-1 text-xs text-slate-500">밴드(하단/중심/상단)와 추천 손절·현재·추천 익절 위치를 한 축에서 비교합니다.</p>
+                  <div className="relative mt-3 h-12 rounded-xl bg-white border border-slate-200">
+                    <div className="absolute left-0 right-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-slate-200" />
+
+                    <div className="absolute top-2 h-8 w-[1px] bg-rose-300" style={{ left: `${priceGraph.pos.stop}%` }} />
+                    <div className="absolute top-2 h-8 w-[1px] bg-sky-300" style={{ left: `${priceGraph.pos.current}%` }} />
+                    <div className="absolute top-2 h-8 w-[1px] bg-emerald-300" style={{ left: `${priceGraph.pos.take}%` }} />
+
+                    <div className="absolute bottom-1 h-2 w-2 -translate-x-1/2 rounded-full bg-rose-500" style={{ left: `${priceGraph.pos.stop}%` }} title="추천 손절가" />
+                    <div className="absolute bottom-1 h-2 w-2 -translate-x-1/2 rounded-full bg-sky-600" style={{ left: `${priceGraph.pos.current}%` }} title="현재가" />
+                    <div className="absolute bottom-1 h-2 w-2 -translate-x-1/2 rounded-full bg-emerald-600" style={{ left: `${priceGraph.pos.take}%` }} title="추천 익절가" />
+
+                    <div className="absolute top-1 h-2 w-2 -translate-x-1/2 rounded-full bg-slate-400" style={{ left: `${priceGraph.pos.lower}%` }} title="하단선" />
+                    <div className="absolute top-1 h-2 w-2 -translate-x-1/2 rounded-full bg-slate-500" style={{ left: `${priceGraph.pos.middle}%` }} title="중심선" />
+                    <div className="absolute top-1 h-2 w-2 -translate-x-1/2 rounded-full bg-slate-700" style={{ left: `${priceGraph.pos.upper}%` }} title="상단선" />
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-600">
+                    <span>● 손절(빨강)</span>
+                    <span>● 현재(파랑)</span>
+                    <span>● 익절(초록)</span>
+                    <span>● 밴드선(회색)</span>
+                  </div>
+                </div>
+              )}
+
               {riskRewardRatio && (
                 <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
                   추천 손익비: <span className="font-semibold">{riskRewardRatio.toFixed(2)} : 1</span>
                   <p className="mt-1 text-xs text-emerald-700">
                     계산식: (추천 익절가 - 현재가) / (현재가 - 추천 손절가)
+                  </p>
+                  <p className="mt-1 text-xs text-emerald-700">
+                    그래프 기반 원시 손익비 {Number(item.trade_plan?.raw_target_rr || 0).toFixed(2)}:1, 적용 손익비 {Number(item.trade_plan?.target_rr || 0).toFixed(2)}:1
                   </p>
                 </div>
               )}

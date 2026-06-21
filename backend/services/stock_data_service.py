@@ -357,9 +357,18 @@ class StockDataService:
         if atr14 <= 0:
             atr14 = close_now * 0.015
 
-        rr_span = max(0.2, target_rr_max - target_rr_min)
         signal_strength = _clip01(score / 100.0)
-        target_rr = target_rr_min + (rr_span * signal_strength)
+        # Graph/signal-first RR: derive from band position, breakout, trend, volume, and downside risk.
+        raw_target_rr = (
+            1.2
+            + (1.1 * breakout_intensity)
+            + (0.7 * trend_intensity)
+            + (0.5 * volume_intensity)
+            + (0.3 * middle_intensity)
+            - (0.7 * downside_intensity)
+        )
+        raw_target_rr = max(0.8, min(4.5, raw_target_rr))
+        target_rr = min(max(raw_target_rr, target_rr_min), target_rr_max)
 
         atr_stop = close_now - (atr14 * max(0.5, atr_multiplier))
         lower_guard_stop = lower_now * 0.995 if lower_now > 0 else atr_stop
@@ -373,7 +382,7 @@ class StockDataService:
         stop_loss_pct = ((close_now - stop_loss_price) / close_now) * 100
         take_profit_pct = ((take_profit_price - close_now) / close_now) * 100
         rationale.append(
-            f"손익절 추천(적응형): ATR14 {atr14:.2f}, 목표 손익비 {target_rr:.2f}:1 기준으로 계산했습니다."
+            f"손익절 추천(적응형): 그래프 신호 기반 손익비 {raw_target_rr:.2f}:1을 계산하고, 설정 범위({target_rr_min:.2f}~{target_rr_max:.2f})로 보정해 {target_rr:.2f}:1을 적용했습니다."
         )
 
         return {
@@ -403,6 +412,10 @@ class StockDataService:
             'trade_plan': {
                 'mode': 'adaptive',
                 'atr14': round(float(atr14), 4),
+                'raw_target_rr': round(float(raw_target_rr), 3),
+                'target_rr': round(float(target_rr), 3),
+                'target_rr_min': round(float(target_rr_min), 3),
+                'target_rr_max': round(float(target_rr_max), 3),
                 'stop_loss_pct': round(stop_loss_pct, 2),
                 'take_profit_pct': round(take_profit_pct, 2),
                 'stop_loss_price': float(stop_loss_price),
