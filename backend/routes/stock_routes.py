@@ -107,8 +107,6 @@ def get_bollinger_recommendations():
         'breakout_down_penalty': request.args.get('breakout_down_penalty', 20, type=int),
         'volume_threshold': request.args.get('volume_threshold', 1.3, type=float),
         'atr_multiplier': request.args.get('atr_multiplier', 1.6, type=float),
-        'target_rr_min': request.args.get('target_rr_min', 1.6, type=float),
-        'target_rr_max': request.args.get('target_rr_max', 3.0, type=float),
     }
 
     if config['us_candidate_count'] is None:

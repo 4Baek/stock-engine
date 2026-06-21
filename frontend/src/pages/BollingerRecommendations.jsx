@@ -35,8 +35,6 @@ export default function BollingerRecommendations() {
     limit: 8,
     min_score: 30,
     atr_multiplier: 1.6,
-    target_rr_min: 1.6,
-    target_rr_max: 3.0,
     breakout_weight: 35,
     squeeze_weight: 20,
     trend_weight: 15,
@@ -309,28 +307,10 @@ export default function BollingerRecommendations() {
               />
             </label>
             <label className="text-sm text-slate-600">
-              최소 손익비
-              <input
-                type="number"
-                min="1"
-                max="5"
-                step="0.1"
-                value={settings.target_rr_min}
-                onChange={(e) => setSettings((prev) => ({ ...prev, target_rr_min: Number(e.target.value) || 1.6 }))}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2"
-              />
-            </label>
-            <label className="text-sm text-slate-600">
-              최대 손익비
-              <input
-                type="number"
-                min="1"
-                max="6"
-                step="0.1"
-                value={settings.target_rr_max}
-                onChange={(e) => setSettings((prev) => ({ ...prev, target_rr_max: Number(e.target.value) || 3 }))}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2"
-              />
+              손익비 계산
+              <div className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-slate-600">
+                그래프 신호 기반 자동 계산
+              </div>
             </label>
           </div>
           {market === 'KR' && settings.universe_mode === 'all' && (
@@ -558,7 +538,7 @@ export default function BollingerRecommendations() {
                     계산식: (추천 익절가 - 현재가) / (현재가 - 추천 손절가)
                   </p>
                   <p className="mt-1 text-xs text-emerald-700">
-                    그래프 기반 원시 손익비 {Number(item.trade_plan?.raw_target_rr || 0).toFixed(2)}:1, 적용 손익비 {Number(item.trade_plan?.target_rr || 0).toFixed(2)}:1
+                    그래프 신호 기반 적용 손익비 {Number(item.trade_plan?.target_rr || 0).toFixed(2)}:1
                   </p>
                 </div>
               )}
