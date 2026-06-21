@@ -277,7 +277,7 @@ export default function BollingerRecommendations() {
               </select>
             </label>
             <label className="text-sm text-slate-600">
-              손절(%)
+              설정 손절(%)
               <input
                 type="number"
                 min="1"
@@ -285,12 +285,11 @@ export default function BollingerRecommendations() {
                 step="0.5"
                 value={settings.stop_loss_pct}
                 onChange={(e) => setSettings((prev) => ({ ...prev, stop_loss_pct: Number(e.target.value) || 1 }))}
-                disabled={settings.trade_plan_mode !== 'fixed'}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 disabled:bg-slate-100"
+                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2"
               />
             </label>
             <label className="text-sm text-slate-600">
-              익절(%)
+              설정 익절(%)
               <input
                 type="number"
                 min="1"
@@ -298,8 +297,7 @@ export default function BollingerRecommendations() {
                 step="0.5"
                 value={settings.take_profit_pct}
                 onChange={(e) => setSettings((prev) => ({ ...prev, take_profit_pct: Number(e.target.value) || 1 }))}
-                disabled={settings.trade_plan_mode !== 'fixed'}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 disabled:bg-slate-100"
+                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2"
               />
             </label>
             {settings.trade_plan_mode === 'adaptive' && (
@@ -523,19 +521,33 @@ export default function BollingerRecommendations() {
 
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                  추천 손절가: <span className="font-semibold text-slate-900">{formatCurrency(item.trade_plan?.stop_loss_price, item.currency)}</span>
+                  {item.trade_plan?.mode === 'adaptive' ? '추천 손절가' : '설정 손절가'}: <span className="font-semibold text-slate-900">{formatCurrency(item.trade_plan?.stop_loss_price, item.currency)}</span>
                   <p className="mt-1 text-xs text-slate-500">기준: 현재가 대비 -{item.trade_plan?.stop_loss_pct}% ({item.trade_plan?.mode === 'adaptive' ? '적응형' : '고정형'})</p>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                  추천 익절가: <span className="font-semibold text-slate-900">{formatCurrency(item.trade_plan?.take_profit_price, item.currency)}</span>
+                  {item.trade_plan?.mode === 'adaptive' ? '추천 익절가' : '설정 익절가'}: <span className="font-semibold text-slate-900">{formatCurrency(item.trade_plan?.take_profit_price, item.currency)}</span>
                   <p className="mt-1 text-xs text-slate-500">기준: 현재가 대비 +{item.trade_plan?.take_profit_pct}% ({item.trade_plan?.mode === 'adaptive' ? '적응형' : '고정형'})</p>
                 </div>
               </div>
 
+              {item.trade_plan?.mode === 'adaptive' && (
+                <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                  설정 손절/익절(고정형 기준):
+                  <span className="ml-1 font-semibold text-slate-900">
+                    {formatCurrency(item.trade_plan?.configured_stop_loss_price, item.currency)} / {formatCurrency(item.trade_plan?.configured_take_profit_price, item.currency)}
+                  </span>
+                  <p className="mt-1 text-xs text-slate-500">
+                    설정값: -{item.trade_plan?.configured_stop_loss_pct}% / +{item.trade_plan?.configured_take_profit_pct}%
+                  </p>
+                </div>
+              )}
+
               {riskRewardRatio && (
                 <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                  추천 손익비: <span className="font-semibold">{riskRewardRatio.toFixed(2)} : 1</span>
-                  <p className="mt-1 text-xs text-emerald-700">계산식: (추천 익절가 - 현재가) / (현재가 - 추천 손절가)</p>
+                  {item.trade_plan?.mode === 'adaptive' ? '추천 손익비' : '설정 손익비'}: <span className="font-semibold">{riskRewardRatio.toFixed(2)} : 1</span>
+                  <p className="mt-1 text-xs text-emerald-700">
+                    계산식: ({item.trade_plan?.mode === 'adaptive' ? '추천 익절가' : '설정 익절가'} - 현재가) / (현재가 - {item.trade_plan?.mode === 'adaptive' ? '추천 손절가' : '설정 손절가'})
+                  </p>
                 </div>
               )}
 
