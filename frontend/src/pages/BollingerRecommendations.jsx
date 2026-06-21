@@ -426,6 +426,9 @@ export default function BollingerRecommendations() {
                   <BarChart3 size={16} />
                   <p className="text-sm font-semibold">밴드 분석</p>
                 </div>
+                <p className="mt-2 text-xs text-slate-500">
+                  밴드는 가격 범위를 나타냅니다. 중심선은 20일 평균, 상단선은 상대적 고평가 구간, 하단선은 상대적 저평가 구간으로 해석합니다.
+                </p>
                 <div className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-3">
                   <p>중심선: {formatCurrency(item.middle_band, item.currency)}</p>
                   <p>상단선: {formatCurrency(item.upper_band, item.currency)}</p>
@@ -447,12 +450,12 @@ export default function BollingerRecommendations() {
 
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                  손절가: <span className="font-semibold text-slate-900">{formatCurrency(item.trade_plan?.stop_loss_price, item.currency)}</span>
-                  <p className="mt-1 text-xs text-slate-500">기준: -{item.trade_plan?.stop_loss_pct}%</p>
+                  추천 손절가: <span className="font-semibold text-slate-900">{formatCurrency(item.trade_plan?.stop_loss_price, item.currency)}</span>
+                  <p className="mt-1 text-xs text-slate-500">기준: 현재가 대비 -{item.trade_plan?.stop_loss_pct}%</p>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                  익절가: <span className="font-semibold text-slate-900">{formatCurrency(item.trade_plan?.take_profit_price, item.currency)}</span>
-                  <p className="mt-1 text-xs text-slate-500">기준: +{item.trade_plan?.take_profit_pct}%</p>
+                  추천 익절가: <span className="font-semibold text-slate-900">{formatCurrency(item.trade_plan?.take_profit_price, item.currency)}</span>
+                  <p className="mt-1 text-xs text-slate-500">기준: 현재가 대비 +{item.trade_plan?.take_profit_pct}%</p>
                 </div>
               </div>
 
