@@ -376,6 +376,9 @@ class StockDataService:
 
         stop_loss_pct = ((close_now - stop_loss_price) / close_now) * 100
         take_profit_pct = ((take_profit_price - close_now) / close_now) * 100
+        risk_pct = max(0.0, stop_loss_pct)
+        reward_pct = max(0.0, take_profit_pct)
+        rr_ratio = (reward_pct / risk_pct) if risk_pct > 0 else None
         rationale.append(
             f"손익절 추천(적응형): 그래프 신호 기반 손익비 {target_rr:.2f}:1을 적용했습니다."
         )
@@ -410,6 +413,9 @@ class StockDataService:
                 'target_rr': round(float(target_rr), 3),
                 'stop_loss_pct': round(stop_loss_pct, 2),
                 'take_profit_pct': round(take_profit_pct, 2),
+                'risk_pct': round(float(risk_pct), 2),
+                'reward_pct': round(float(reward_pct), 2),
+                'rr_ratio': round(float(rr_ratio), 3) if rr_ratio is not None else None,
                 'stop_loss_price': float(stop_loss_price),
                 'take_profit_price': float(take_profit_price),
             },

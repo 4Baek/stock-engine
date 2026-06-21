@@ -137,6 +137,9 @@ export default function BollingerRecommendations() {
   const marketLabel = useMemo(() => (market === 'KR' ? '한국' : '미국'), [market]);
 
   const getRiskRewardRatio = (item) => {
+    const apiRr = Number(item?.trade_plan?.rr_ratio);
+    if (Number.isFinite(apiRr) && apiRr > 0) return apiRr;
+
     const current = Number(item?.current_price);
     const stop = Number(item?.trade_plan?.stop_loss_price);
     const take = Number(item?.trade_plan?.take_profit_price);
