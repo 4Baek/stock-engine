@@ -175,6 +175,39 @@ export default function BollingerGuide() {
           각 설정값이 추천 점수와 결과 종목에 어떤 영향을 주는지 정리한 페이지입니다.
           값 조정 전 기준을 확인하면 추천 결과를 의도한 방향으로 더 빠르게 맞출 수 있습니다.
         </p>
+        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          중요: 이 추천은 기술적 지표 기반 보조 판단 도구입니다. 외부 뉴스, 실적 발표, 정책/금리 이벤트, 장중 급변동은 모델이 즉시 반영하지 못할 수 있으므로 추천값을 완전히 신뢰하면 안 됩니다.
+        </div>
+      </section>
+
+      <section className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-lg shadow-slate-200/40">
+        <h2 className="text-2xl font-bold text-slate-900">추천 손익절 설정 방법 (상세)</h2>
+        <div className="mt-4 space-y-4 text-sm text-slate-700">
+          <p>
+            현재 추천 손익절가는 고정 퍼센트가 아니라 차트 신호 기반 적응형으로 계산됩니다.
+            핵심은 변동성(ATR), 밴드 위치, 돌파/추세/거래량 강도를 조합해 종목별 손절가/익절가를 다르게 제시하는 것입니다.
+          </p>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="font-semibold text-slate-900">1) 손절가 계산</p>
+            <p className="mt-2">ATR 배수를 반영한 변동성 손절값과 하단 밴드 방어값을 비교해 더 보수적인 값을 손절가로 선택합니다.</p>
+            <p className="mt-1">즉, 흔들림이 큰 종목은 손절 폭이 넓어지고, 상대적으로 안정적인 종목은 손절 폭이 좁아집니다.</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="font-semibold text-slate-900">2) 익절가 계산</p>
+            <p className="mt-2">밴드 위치/돌파/추세/거래량/리스크 신호로 손익비를 산출한 뒤, 손절 폭과 결합해 익절가를 계산합니다.</p>
+            <p className="mt-1">이후 변동성 기반 상한으로 과도하게 먼 목표가는 자동 제한합니다.</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="font-semibold text-slate-900">3) 해석 방법</p>
+            <p className="mt-2">카드의 가격 위치 그래프에서 손절/현재/익절과 밴드(하단/중심/상단)의 상대적 위치를 먼저 확인하세요.</p>
+            <p className="mt-1">숫자 한 개보다 위치 관계와 신호 강도(돌파, 추세, 거래량)를 같이 보는 것이 더 안전합니다.</p>
+          </div>
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-800">
+            <p className="font-semibold">주의사항</p>
+            <p className="mt-2">추천 손익절은 과거 가격 패턴 기반 추정치이며, 실시간 뉴스/공시/실적/정책 변수로 쉽게 무력화될 수 있습니다.</p>
+            <p className="mt-1">반드시 포지션 크기 관리, 분할 진입, 이벤트 캘린더 확인과 함께 사용하세요.</p>
+          </div>
+        </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-3">
