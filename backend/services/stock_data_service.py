@@ -247,27 +247,32 @@ class StockDataService:
         close_now = float(current['close'])
         ma60_now = float(current['ma60']) if pd.notna(current['ma60']) else None
 
-        upper_gap = max(upper_now - middle_now, 1e-9)
-        breakout_intensity = _clip01((close_now - middle_now) / upper_gap)
+        band_width = max(upper_now - lower_now, 1e-9)
+        normalized_position = (close_now - lower_now) / band_width
+
+        # Position-based score: avoids immediate saturation around upper-band touch.
+        breakout_intensity = _clip01((normalized_position - 0.45) / 0.75)
         if breakout_up:
-            breakout_intensity = _clip01(breakout_intensity + 0.25)
+            breakout_intensity = _clip01(breakout_intensity + 0.08)
 
         if squeeze_threshold > 0:
-            squeeze_intensity = _clip01((squeeze_threshold - current_bandwidth) / squeeze_threshold)
+            squeeze_intensity = _clip01((squeeze_threshold - current_bandwidth) / max(squeeze_threshold * 1.8, 1e-9))
         else:
             squeeze_intensity = 0.0
         if squeeze:
-            squeeze_intensity = max(squeeze_intensity, 0.25)
+            squeeze_intensity = max(squeeze_intensity, 0.2)
 
         if ma60_now and ma60_now > 0:
-            trend_intensity = _clip01((close_now - ma60_now) / (ma60_now * 0.08))
+            trend_ratio = (close_now / ma60_now) - 1.0
+            trend_intensity = _clip01((trend_ratio + 0.02) / 0.18)
         else:
             trend_intensity = 0.0
 
-        volume_gap = max(volume_threshold - 1.0, 0.1)
-        volume_intensity = _clip01((volume_ratio - 1.0) / volume_gap)
+        # Smooth curve: high-volume names still get separation instead of all becoming 1.0.
+        volume_intensity = 1.0 - pow(2.718281828, -max(0.0, volume_ratio - 1.0) / max(volume_threshold, 0.1))
+        volume_intensity = _clip01(volume_intensity)
 
-        middle_intensity = _clip01((close_now - middle_now) / max(middle_now * 0.04, 1e-9))
+        middle_intensity = _clip01((normalized_position - 0.5) / 0.6)
 
         downside_intensity = 0.0
         if close_now < lower_now:
