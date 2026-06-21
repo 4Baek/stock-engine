@@ -397,7 +397,7 @@ export default function BollingerRecommendations() {
                 </div>
                 <div className="rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 px-4 py-3 text-white">
                   <p className="text-xs opacity-80">추천 점수</p>
-                  <p className="text-2xl font-bold">{item.score}</p>
+                  <p className="text-2xl font-bold">{Number(item.score || 0).toFixed(1)}</p>
                 </div>
               </div>
 

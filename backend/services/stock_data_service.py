@@ -238,21 +238,63 @@ class StockDataService:
         trend_up = bool(pd.notna(current['ma60']) and current['close'] > current['ma60'])
         above_middle = bool(current['close'] > current['middle'])
 
-        score = 0
-        if breakout_up:
-            score += breakout_weight
-        if squeeze:
-            score += squeeze_weight
-        if trend_up:
-            score += trend_weight
-        if volume_ratio >= volume_threshold:
-            score += volume_weight
-        if above_middle:
-            score += above_middle_weight
-        if breakout_down:
-            score -= downside_penalty
+        def _clip01(value):
+            return max(0.0, min(1.0, float(value)))
 
-        score = max(0, min(100, score))
+        middle_now = float(current['middle'])
+        upper_now = float(current['upper'])
+        lower_now = float(current['lower'])
+        close_now = float(current['close'])
+        ma60_now = float(current['ma60']) if pd.notna(current['ma60']) else None
+
+        upper_gap = max(upper_now - middle_now, 1e-9)
+        breakout_intensity = _clip01((close_now - middle_now) / upper_gap)
+        if breakout_up:
+            breakout_intensity = _clip01(breakout_intensity + 0.25)
+
+        if squeeze_threshold > 0:
+            squeeze_intensity = _clip01((squeeze_threshold - current_bandwidth) / squeeze_threshold)
+        else:
+            squeeze_intensity = 0.0
+        if squeeze:
+            squeeze_intensity = max(squeeze_intensity, 0.25)
+
+        if ma60_now and ma60_now > 0:
+            trend_intensity = _clip01((close_now - ma60_now) / (ma60_now * 0.08))
+        else:
+            trend_intensity = 0.0
+
+        volume_gap = max(volume_threshold - 1.0, 0.1)
+        volume_intensity = _clip01((volume_ratio - 1.0) / volume_gap)
+
+        middle_intensity = _clip01((close_now - middle_now) / max(middle_now * 0.04, 1e-9))
+
+        downside_intensity = 0.0
+        if close_now < lower_now:
+            downside_intensity = _clip01((lower_now - close_now) / max(lower_now * 0.04, 1e-9))
+        if breakout_down:
+            downside_intensity = max(downside_intensity, 0.6)
+
+        breakout_component = breakout_weight * breakout_intensity
+        squeeze_component = squeeze_weight * squeeze_intensity
+        trend_component = trend_weight * trend_intensity
+        volume_component = volume_weight * volume_intensity
+        above_middle_component = above_middle_weight * middle_intensity
+        downside_component = downside_penalty * downside_intensity
+
+        score = max(
+            0.0,
+            min(
+                100.0,
+                breakout_component
+                + squeeze_component
+                + trend_component
+                + volume_component
+                + above_middle_component
+                - downside_component,
+            ),
+        )
+        score = round(score, 1)
 
         rationale = []
         if breakout_up:
@@ -267,6 +309,9 @@ class StockDataService:
             rationale.append('하단 밴드 이탈로 변동성 리스크가 존재합니다.')
         if not rationale:
             rationale.append('볼리저밴드 기준 중립 구간으로 추가 확인이 필요합니다.')
+        rationale.append(
+            f"세부 점수: 돌파 {breakout_component:.1f}, 스퀴즈 {squeeze_component:.1f}, 추세 {trend_component:.1f}, 거래량 {volume_component:.1f}, 중심선 {above_middle_component:.1f}, 하단패널티 -{downside_component:.1f}"
+        )
 
         stop_loss_price = float(current['close'] * (1 - stop_loss_pct / 100))
         take_profit_price = float(current['close'] * (1 + take_profit_pct / 100))
@@ -287,6 +332,14 @@ class StockDataService:
                 'above_middle': above_middle,
             },
             'score': score,
+            'score_breakdown': {
+                'breakout_component': round(breakout_component, 2),
+                'squeeze_component': round(squeeze_component, 2),
+                'trend_component': round(trend_component, 2),
+                'volume_component': round(volume_component, 2),
+                'above_middle_component': round(above_middle_component, 2),
+                'downside_component': round(downside_component, 2),
+            },
             'trade_plan': {
                 'stop_loss_pct': round(stop_loss_pct, 2),
                 'take_profit_pct': round(take_profit_pct, 2),
@@ -376,7 +429,15 @@ class StockDataService:
                         analyzed_count += 1
                         recommendations.append(item)
 
-            recommendations.sort(key=lambda x: x.get('score', 0), reverse=True)
+            recommendations.sort(
+                key=lambda x: (
+                    x.get('score', 0),
+                    (x.get('score_breakdown') or {}).get('breakout_component', 0),
+                    (x.get('score_breakdown') or {}).get('volume_component', 0),
+                    x.get('volume_ratio', 0),
+                ),
+                reverse=True,
+            )
 
             # Primary filtering by requested threshold.
             filtered_recommendations = [
