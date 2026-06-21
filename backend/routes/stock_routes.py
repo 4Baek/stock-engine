@@ -92,7 +92,7 @@ def get_exchange_rate():
 @stock_bp.route('/recommendations/bollinger', methods=['GET'])
 def get_bollinger_recommendations():
     """Get Bollinger-band based stock recommendations"""
-    market = request.args.get('market', 'KR')
+    market = request.args.get('market', 'US')
     limit = request.args.get('limit', 6, type=int)
     config = {
         'min_score': request.args.get('min_score', 0, type=int),

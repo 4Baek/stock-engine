@@ -4,7 +4,7 @@ import { stockService } from '../services/api';
 
 export default function StockSearch({ onSelectStock }) {
   const [query, setQuery] = useState('');
-  const [market, setMarket] = useState('');
+  const [market, setMarket] = useState('KR');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -17,10 +17,8 @@ export default function StockSearch({ onSelectStock }) {
       let response;
       if (market === 'KR') {
         response = await stockService.searchKrStocks(query);
-      } else if (market === 'US') {
-        response = await stockService.searchUsStocks(query);
       } else {
-        response = await stockService.searchStocks(query, null);
+        response = await stockService.searchUsStocks(query);
       }
       setResults(response.data.results || []);
     } catch (error) {
@@ -37,17 +35,19 @@ export default function StockSearch({ onSelectStock }) {
         <div className="flex-1 flex gap-2">
           <select 
             value={market} 
-            onChange={(e) => setMarket(e.target.value)}
+            onChange={(e) => {
+              setMarket(e.target.value);
+              setResults([]);
+            }}
             className="px-3 py-2 border border-gray-300 rounded-md"
           >
-            <option value="">전체 시장</option>
             <option value="KR">한국</option>
             <option value="US">미국</option>
           </select>
           
           <input
             type="text"
-            placeholder="주식 검색... (예: AAPL, 삼성전자)"
+            placeholder={market === 'KR' ? '한국 주식 검색... (예: 삼성전자, SK하이닉스)' : '미국 주식 검색... (예: AAPL, NVDA)'}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="flex-1 px-4 py-2 border border-gray-300 rounded-md"

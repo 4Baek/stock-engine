@@ -23,7 +23,7 @@ function SignalBadge({ active, label, colorClass }) {
 
 export default function BollingerRecommendations() {
   const navigate = useNavigate();
-  const [market, setMarket] = useState('KR');
+  const [market, setMarket] = useState('US');
   const [loading, setLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [error, setError] = useState(null);

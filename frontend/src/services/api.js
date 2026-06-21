@@ -31,7 +31,7 @@ export const stockService = {
   getExchangeRate: (base = 'USD', quote = 'KRW') =>
     api.get('/stocks/exchange-rate', { params: { base, quote } }),
 
-  getBollingerRecommendations: (market = 'KR', limit = 6, options = {}) =>
+  getBollingerRecommendations: (market = 'US', limit = 6, options = {}) =>
     api.get('/stocks/recommendations/bollinger', { params: { market, limit, ...options } }),
   
   getStockInfo: (symbol, market = 'US') =>

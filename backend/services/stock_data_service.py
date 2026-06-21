@@ -355,7 +355,7 @@ class StockDataService:
         }
 
     @staticmethod
-    def get_bollinger_recommendations(market='KR', limit=6, config=None):
+    def get_bollinger_recommendations(market='US', limit=6, config=None):
         """Get Bollinger-band based stock recommendations by market."""
         try:
             config = config or {}
