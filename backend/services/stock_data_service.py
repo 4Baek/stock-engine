@@ -11,6 +11,7 @@ import json
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import re
+import unicodedata
 
 try:
     from bs4 import BeautifulSoup
@@ -34,6 +35,13 @@ class StockDataService:
     _bollinger_cache = {}
     _bollinger_cache_ttl_seconds = 120
     _cache_lock = threading.Lock()
+
+    @staticmethod
+    def _normalize_text(value):
+        text = unicodedata.normalize('NFKC', str(value or '')).strip().lower()
+        compact = re.sub(r'\s+', '', text)
+        compact = re.sub(r'[^0-9a-zA-Z가-힣]', '', compact)
+        return compact
 
     @staticmethod
     def _to_float(value):
@@ -1035,7 +1043,10 @@ class StockDataService:
         try:
             normalized_query = (query or '').strip()
             normalized_query_lower = normalized_query.lower()
-            normalized_query_compact = normalized_query_lower.replace(' ', '')
+            normalized_query_compact = StockDataService._normalize_text(normalized_query)
+
+            if not normalized_query_compact:
+                return []
 
             results = []
             
@@ -1045,10 +1056,19 @@ class StockDataService:
                     krx_stocks = StockDataService.get_krx_stocks(5000)
                     filtered = [
                         s for s in krx_stocks
-                        if normalized_query_lower in s.get('symbol', '').lower()
-                        or normalized_query_lower in s.get('name', '').lower()
-                        or normalized_query_compact in s.get('name', '').lower().replace(' ', '')
+                        if normalized_query_lower in str(s.get('symbol', '')).lower()
+                        or normalized_query_lower in str(s.get('name', '')).lower()
+                        or normalized_query_compact in StockDataService._normalize_text(s.get('name', ''))
+                        or normalized_query_compact in StockDataService._normalize_text(s.get('symbol', ''))
                     ]
+                    if not filtered:
+                        # Fallback with larger universe when first pass misses Korean keyword variations.
+                        krx_stocks_fallback = StockDataService.get_krx_stocks(10000)
+                        filtered = [
+                            s for s in krx_stocks_fallback
+                            if normalized_query_compact in StockDataService._normalize_text(s.get('name', ''))
+                            or normalized_query_compact in StockDataService._normalize_text(s.get('symbol', ''))
+                        ]
                     results.extend(filtered[:30])
                 except:
                     pass

@@ -4,7 +4,7 @@ import { stockService } from '../services/api';
 
 export default function StockSearch({ onSelectStock }) {
   const [query, setQuery] = useState('');
-  const [market, setMarket] = useState('KR');
+  const [market, setMarket] = useState('US');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
 
