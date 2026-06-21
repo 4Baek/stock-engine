@@ -51,6 +51,18 @@ export default function BollingerRecommendations() {
     return '점수 정렬 및 추천 생성 중';
   }, [loadingProgress]);
 
+  const universeOptions = useMemo(() => {
+    if (market === 'US') {
+      return [{ value: 'top_value', label: '유동성 상위' }];
+    }
+    return [
+      { value: 'top_value', label: '거래대금 상위' },
+      { value: 'all', label: '전체 (코스피/코스닥)' },
+    ];
+  }, [market]);
+
+  const universeCountLabel = market === 'US' ? '유동성 상위 개수' : '거래대금 상위 개수';
+
   useEffect(() => {
     if (!loading) {
       setLoadingProgress(0);
@@ -107,6 +119,12 @@ export default function BollingerRecommendations() {
   useEffect(() => {
     fetchRecommendations(market);
   }, [market]);
+
+  useEffect(() => {
+    if (market === 'US' && settings.universe_mode !== 'top_value') {
+      setSettings((prev) => ({ ...prev, universe_mode: 'top_value' }));
+    }
+  }, [market, settings.universe_mode]);
 
   const openStockDetails = (item) => {
     const params = new URLSearchParams({
@@ -166,7 +184,7 @@ export default function BollingerRecommendations() {
               전략: <span className="font-semibold text-slate-900">{meta.strategy}</span>
             </div>
             <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
-              유니버스: <span className="font-semibold text-slate-900">{meta.config?.universe_mode === 'all' ? '전체' : '거래대금 상위'}</span>
+              유니버스: <span className="font-semibold text-slate-900">{meta.config?.universe_mode === 'all' ? '전체' : market === 'US' ? '유동성 상위' : '거래대금 상위'}</span>
             </div>
           </div>
         )}
@@ -187,12 +205,15 @@ export default function BollingerRecommendations() {
                 onChange={(e) => setSettings((prev) => ({ ...prev, universe_mode: e.target.value }))}
                 className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2"
               >
-                <option value="top_value">거래대금 상위</option>
-                <option value="all">전체 (코스피/코스닥)</option>
+                {universeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             </label>
             <label className="text-sm text-slate-600">
-              거래대금 상위 개수
+              {universeCountLabel}
               <input
                 type="number"
                 min="50"
