@@ -378,7 +378,8 @@ class StockDataService:
         atr_pct = (atr14 / close_now) * 100 if close_now > 0 else 0
         dynamic_take_profit_cap_pct = min(30.0, max(14.0, atr_pct * 4.0))
         capped_take_profit_price = close_now * (1 + dynamic_take_profit_cap_pct / 100)
-        if take_profit_price > capped_take_profit_price:
+        take_profit_capped = take_profit_price > capped_take_profit_price
+        if take_profit_capped:
             take_profit_price = capped_take_profit_price
 
         stop_loss_pct = ((close_now - stop_loss_price) / close_now) * 100
@@ -389,7 +390,7 @@ class StockDataService:
         rationale.append(
             f"손익절 추천(적응형): 그래프 신호 기반 손익비 {target_rr:.2f}:1을 적용했습니다."
         )
-        if take_profit_price < uncapped_take_profit_price:
+        if take_profit_capped:
             rationale.append(
                 f"익절가 상한 적용: 변동성(ATR {atr_pct:.2f}%) 기준 최대 익절폭 {dynamic_take_profit_cap_pct:.2f}%로 제한했습니다."
             )
@@ -425,6 +426,9 @@ class StockDataService:
                 'stop_loss_pct': round(stop_loss_pct, 2),
                 'take_profit_pct': round(take_profit_pct, 2),
                 'take_profit_cap_pct': round(float(dynamic_take_profit_cap_pct), 2),
+                'take_profit_capped': bool(take_profit_capped),
+                'uncapped_take_profit_price': float(uncapped_take_profit_price),
+                'capped_take_profit_price': float(capped_take_profit_price),
                 'risk_pct': round(float(risk_pct), 2),
                 'reward_pct': round(float(reward_pct), 2),
                 'rr_ratio': round(float(rr_ratio), 3) if rr_ratio is not None else None,

@@ -503,8 +503,8 @@ export default function BollingerRecommendations() {
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
                   추천 익절가: <span className="font-semibold text-slate-900">{formatCurrency(item.trade_plan?.take_profit_price, item.currency)}</span>
                   <p className="mt-1 text-xs text-slate-500">기준: 현재가 대비 +{item.trade_plan?.take_profit_pct}% (적응형)</p>
-                  {Number.isFinite(Number(item.trade_plan?.take_profit_cap_pct)) && (
-                    <p className="mt-1 text-xs text-slate-500">익절 상한: +{item.trade_plan?.take_profit_cap_pct}%</p>
+                  {item.trade_plan?.take_profit_capped && Number.isFinite(Number(item.trade_plan?.take_profit_cap_pct)) && (
+                    <p className="mt-1 text-xs text-amber-700">익절 상한 적용됨: 최대 +{item.trade_plan?.take_profit_cap_pct}%</p>
                   )}
                 </div>
               </div>
