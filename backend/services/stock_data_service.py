@@ -188,7 +188,11 @@ class StockDataService:
         upper = middle + (2 * std)
         lower = middle - (2 * std)
 
-        volume = hist_df['Volume'].astype(float) if 'Volume' in hist_df.columns else pd.Series([0] * len(hist_df))
+        volume = (
+            hist_df['Volume'].astype(float)
+            if 'Volume' in hist_df.columns
+            else pd.Series([0.0] * len(hist_df), index=close.index)
+        )
         ma60 = close.rolling(window=60).mean()
 
         data = pd.DataFrame({
@@ -288,10 +292,12 @@ class StockDataService:
             config = config or {}
             market = (market or 'KR').upper()
             if market not in ['KR', 'US']:
-                return {'error': 'Invalid market'}
+                return {'error': 'Invalid market', 'error_type': 'bad_request'}
 
             universe_mode = str(config.get('universe_mode', 'top_value')).lower()
             top_value_count = int(config.get('top_value_count', 200))
+            us_candidate_count = int(config.get('us_candidate_count', top_value_count))
+            us_candidate_count = max(20, min(500, us_candidate_count))
 
             cache_key = f"{market}|{int(limit)}|{json.dumps(config, sort_keys=True, ensure_ascii=False)}"
             now = datetime.utcnow()
@@ -315,7 +321,7 @@ class StockDataService:
                         candidates = StockDataService.get_krx_stocks(min(top_value_count, 500))
                         universe_mode = 'top_value_fallback'
             else:
-                candidates = StockDataService.get_us_stocks(20)
+                candidates = StockDataService.get_us_stocks(us_candidate_count)
 
             recommendations = []
             analyzed_count = 0
@@ -350,7 +356,11 @@ class StockDataService:
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 futures = [executor.submit(analyze_candidate, stock) for stock in candidates]
                 for future in as_completed(futures):
-                    item = future.result()
+                    try:
+                        item = future.result()
+                    except Exception as future_err:
+                        logger.warning(f"Bollinger worker failed ({market}): {future_err}")
+                        continue
                     if item:
                         analyzed_count += 1
                         recommendations.append(item)
@@ -408,6 +418,7 @@ class StockDataService:
                     'requested_min_score': requested_min_score,
                     'universe_mode': universe_mode,
                     'top_value_count': top_value_count,
+                    'us_candidate_count': us_candidate_count,
                     'breakout_weight': int(config.get('breakout_weight', 35)),
                     'squeeze_weight': int(config.get('squeeze_weight', 20)),
                     'trend_weight': int(config.get('trend_weight', 15)),
@@ -432,7 +443,7 @@ class StockDataService:
             return data
         except Exception as e:
             logger.error(f"Error generating Bollinger recommendations for {market}: {e}")
-            return {'error': str(e)}
+            return {'error': str(e), 'error_type': 'internal'}
 
     @staticmethod
     def get_exchange_rate(base='USD', quote='KRW'):

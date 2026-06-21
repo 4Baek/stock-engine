@@ -98,6 +98,7 @@ def get_bollinger_recommendations():
         'min_score': request.args.get('min_score', 0, type=int),
         'universe_mode': request.args.get('universe_mode', 'top_value', type=str),
         'top_value_count': request.args.get('top_value_count', 200, type=int),
+        'us_candidate_count': request.args.get('us_candidate_count', None, type=int),
         'breakout_weight': request.args.get('breakout_weight', 35, type=int),
         'squeeze_weight': request.args.get('squeeze_weight', 20, type=int),
         'trend_weight': request.args.get('trend_weight', 15, type=int),
@@ -109,9 +110,13 @@ def get_bollinger_recommendations():
         'take_profit_pct': request.args.get('take_profit_pct', 12.0, type=float),
     }
 
+    if config['us_candidate_count'] is None:
+        config.pop('us_candidate_count')
+
     data = StockDataService.get_bollinger_recommendations(market=market, limit=limit, config=config)
     if data.get('error'):
-        return jsonify({'error': data['error']}), 400
+        status_code = 400 if data.get('error_type') == 'bad_request' else 500
+        return jsonify({'error': data['error']}), status_code
 
     return jsonify(data), 200
 
